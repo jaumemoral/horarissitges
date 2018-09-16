@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 
 link = "https://sitgesfilmfestival.com/cat/programa"
 f = urllib.urlopen(link)
-html_doc=open("programa","r").read()
+html_doc=f.read()
 soup = BeautifulSoup(html_doc, 'html.parser')
 f.close()
 	
