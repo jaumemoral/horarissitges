@@ -1,46 +1,43 @@
 # -*- coding: utf-8 -*-
-import urllib
-from bs4 import BeautifulSoup
+import urllib.request
 from icalendar import Calendar, Event
+import json
 from pytz import timezone
-from datetime import datetime, timedelta
+from datetime import datetime
 
-link = "https://sitgesfilmfestival.com/cat/programa"
-f = urllib.urlopen(link)
-html_doc=f.read()
-soup = BeautifulSoup(html_doc, 'html.parser')
+link = "https://sitgesfilmfestival.com/es/service/films/2022"
+f = urllib.request.urlopen(link)
+dades = json.load(f)
 f.close()
 	
 cal = {}
-cal['Prado']=Calendar()
-cal['Retiro']=Calendar()
-cal['Auditori']=Calendar()
-cal['Tramuntana']=Calendar()
-cal['Brigadoon']=Calendar()
 lt = timezone('Europe/Paris')
 
-taula=soup.find("table")
-files=taula.find_all("tr")
-for fila in files:
-  tds=fila.find_all("td")
-  if len(tds)>=4:
-    hora=tds[1].text.strip().replace("\n\n"," ")
-    inici=datetime.strptime(hora,"%d-%m-%Y %H:%M")
-    peli=tds[2].text.strip().replace("\n","/")
-    lloc=tds[3].text.strip().split()[0]
-    durada=tds[5].text.strip().replace("\'","")
-    if len(durada)==0: durada=120
-    fi=inici+timedelta(minutes=int(durada))
+sessions=dades['sessions']
+locations={}
+for location in dades['locations']:
+  locations[location['id']]=location['name']['ca']
 
-    event = Event()        
-    event.add('summary', peli)
-    event.add('dtstart', inici.replace(tzinfo=lt))
-    event.add('dtend', fi.replace(tzinfo=lt))
-    event.add('location', lloc)
+for sessio in sessions:
+  inici=datetime.strptime(sessio['start_date'],"%Y-%m-%dT%H:%M:%S")
+  fi=datetime.strptime(sessio['end_date'],"%Y-%m-%dT%H:%M:%S")
+  peli=sessio['name']['ca']
+  lloc=locations[sessio['locations'][0]]
 
-    cal[lloc].add_component(event)
+  print ("Processant "+peli)
+
+  event = Event()        
+  event.add('summary', peli)
+  event.add('dtstart', inici.replace(tzinfo=lt))
+  event.add('dtend', fi.replace(tzinfo=lt))
+  event.add('location', lloc)
+
+  if lloc not in cal.keys():
+    cal[lloc]=Calendar()
+  cal[lloc].add_component(event)
 
 for lloc in cal.keys(): 
+  print ("Escrivint calendari per "+lloc)
   f = open(lloc+'.ics', 'wb')
   f.write(cal[lloc].to_ical())
   f.close()
